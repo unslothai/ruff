@@ -1,0 +1,106 @@
+# Builds ruff-unsloth wheels for every platform and attaches them to the GitHub
+# release for the pushed tag. Upstream ruff's workflows are removed on this branch
+# so a tag push runs nothing else.
+name: ruff-unsloth wheels
+
+on:
+  push:
+    tags:
+      - "v*-unsloth.*"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  CARGO_TERM_COLOR: always
+  RUSTUP_MAX_RETRIES: 10
+
+jobs:
+  wheels:
+    name: wheel (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            manylinux: "2_17"
+            test: true
+          - name: linux-aarch64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            manylinux: "2_17"
+            # 64K-page kernels: https://github.com/astral-sh/ruff/issues/3791
+            docker-options: -e JEMALLOC_SYS_WITH_LG_PAGE=16
+            test: false
+          - name: linux-musl-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            manylinux: musllinux_1_2
+            test: false
+          - name: macos-arm64
+            os: macos-15
+            target: aarch64-apple-darwin
+            test: true
+          - name: macos-x86_64
+            os: macos-15
+            target: x86_64-apple-darwin
+            test: false
+          - name: windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            test: true
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build wheel
+        uses: PyO3/maturin-action@86b9d133d34bc1b40018696f782949dac11bd380 # v1.49.4
+        with:
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux || 'auto' }}
+          docker-options: ${{ matrix.docker-options }}
+          args: --release --locked --out dist
+      - name: Smoke test
+        if: matrix.test
+        shell: bash
+        run: |
+          python -m venv .smoke
+          if [ -x .smoke/bin/python ]; then py=.smoke/bin/python; else py=.smoke/Scripts/python.exe; fi
+          "$py" -m pip install --quiet dist/*.whl
+          out=$(printf 'f(a=1, b=c)\ndef g(x=1):\n    return x\n' | "$py" -m ruff_unsloth format --isolated - | tr -d '\r')
+          printf '%s\n' "$out"
+          expected=$(printf 'f(a = 1, b = c)\n\n\ndef g(x = 1):\n    return x')
+          [ "$out" = "$expected" ]
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: wheel-${{ matrix.name }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  release:
+    needs: wheels
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum *.whl > SHA256SUMS
+          cat SHA256SUMS
+          cd ..
+          gh release create "$GITHUB_REF_NAME" dist/*.whl dist/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "ruff-unsloth ${GITHUB_REF_NAME#v}" \
+            --notes-file UNSLOTH.md

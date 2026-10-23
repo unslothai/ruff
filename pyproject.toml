@@ -3,9 +3,9 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "ruff"
-version = "0.6.9"
-description = "An extremely fast Python linter and code formatter, written in Rust."
+name = "ruff-unsloth"
+version = "0.6.9.post1"
+description = "ruff 0.6.9 with the unsloth formatting style (spaced keyword equals), built as ruff-unsloth."
 authors = [{ name = "Astral Software Inc.", email = "hey@astral.sh" }]
 readme = "README.md"
 requires-python = ">=3.7"
@@ -39,14 +39,15 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/astral-sh/ruff"
+Repository = "https://github.com/unslothai/ruff"
+Upstream = "https://github.com/astral-sh/ruff"
 Documentation = "https://docs.astral.sh/ruff/"
 Changelog = "https://github.com/astral-sh/ruff/blob/main/CHANGELOG.md"
 
 [tool.maturin]
 bindings = "bin"
 manifest-path = "crates/ruff/Cargo.toml"
-module-name = "ruff"
+module-name = "ruff_unsloth"
 python-source = "python"
 strip = true
 exclude = [

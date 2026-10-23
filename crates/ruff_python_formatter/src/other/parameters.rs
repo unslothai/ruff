@@ -59,6 +59,20 @@ impl FormatNodeRule<Parameters> for FormatParameters {
 
         let (slash, star) = find_parameter_separators(f.context().source(), item);
 
+        // unsloth: a def with >= 3 parameters and any default is always one per line;
+        // every other def ignores its magic trailing comma and collapses when it fits.
+        let count = posonlyargs.len()
+            + args.len()
+            + kwonlyargs.len()
+            + usize::from(vararg.is_some())
+            + usize::from(kwarg.is_some());
+        let has_default = posonlyargs
+            .iter()
+            .chain(args)
+            .chain(kwonlyargs)
+            .any(|parameter| parameter.default.is_some());
+        let force_expand = count >= 3 && has_default;
+
         let comments = f.context().comments().clone();
         let dangling = comments.dangling(item);
 
@@ -227,9 +241,7 @@ impl FormatNodeRule<Parameters> for FormatParameters {
             } else {
                 write!(f, [if_group_breaks(&token(","))])?;
 
-                if f.options().magic_trailing_comma().is_respect()
-                    && has_trailing_comma(item, last_node, f.context().source())
-                {
+                if force_expand {
                     // Make the magic trailing comma expand the group
                     write!(f, [hard_line_break()])?;
                 }

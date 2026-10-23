@@ -59,7 +59,14 @@ impl FormatNodeRule<ParameterWithDefault> for FormatParameterWithDefault {
                 f,
                 [
                     space,
-                    token("="),
+                    // unsloth: unannotated defaults get the spaced, width-1 equals too.
+                    if space.is_some() {
+                        token("=")
+                    } else if needs_line_break {
+                        token(" =")
+                    } else {
+                        token(" = ")
+                    },
                     (!needs_line_break).then_some(space),
                     needs_line_break.then_some(hard_line_break()),
                     default.format()

@@ -77,6 +77,16 @@ impl<'a> PyFormatContext<'a> {
         &self.comments
     }
 
+    /// unsloth: set the magic trailing comma mode, returning the previous one.
+    pub(crate) fn replace_magic_trailing_comma(
+        &mut self,
+        value: crate::MagicTrailingComma,
+    ) -> crate::MagicTrailingComma {
+        let previous = self.options.magic_trailing_comma();
+        self.options = self.options.clone().with_magic_trailing_comma(value);
+        previous
+    }
+
     pub(crate) fn tokens(&self) -> &'a Tokens {
         self.tokens
     }

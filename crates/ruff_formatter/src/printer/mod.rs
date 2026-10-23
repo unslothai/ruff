@@ -469,7 +469,7 @@ impl<'a> Printer<'a> {
             #[allow(clippy::cast_possible_truncation)]
             Text::Token(token) => {
                 self.state.buffer.push_str(token);
-                self.state.line_width += token.len() as u32;
+                self.state.line_width += token_width(token);
             }
             Text::Text {
                 text,
@@ -1491,7 +1491,7 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
         match text {
             #[allow(clippy::cast_possible_truncation)]
             Text::Token(token) => {
-                self.state.line_width += token.len() as u32;
+                self.state.line_width += token_width(token);
             }
             Text::Text { text, text_width } => {
                 if let Some(width) = text_width.width() {
@@ -2091,5 +2091,15 @@ Group 1 breaks"
                 ))]
             )
         }
+    }
+}
+
+/// unsloth: `" = "` and `" ="` are kwarg/default equals written with spaces; they are
+/// measured as the bare `=` stock ruff emits, so line breaking is unchanged.
+#[allow(clippy::cast_possible_truncation)]
+fn token_width(token: &str) -> u32 {
+    match token {
+        " = " | " =" => 1,
+        _ => token.len() as u32,
     }
 }

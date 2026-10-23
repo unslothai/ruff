@@ -234,7 +234,18 @@ impl FormatRule<Suite, PyFormatContext<'_>> for FormatSuite {
                             })
                         && !preceding_comments.has_trailing_own_line();
 
-                    if !is_preceding_stub_function_without_empty_line {
+                    let short_nested_import = is_import_definition(preceding)
+                        && !matches!(self.kind, SuiteKind::TopLevel)
+                        && statements.len() <= 3
+                        && !following_comments.has_leading()
+                        && !preceding_comments.has_trailing_own_line()
+                        // A decorator sits between the import and the `def` line.
+                        && !following.as_function_def_stmt().is_some_and(|d| !d.decorator_list.is_empty())
+                        && !following.as_class_def_stmt().is_some_and(|c| !c.decorator_list.is_empty());
+                    if short_nested_import {
+                        // unsloth: see the import branch below.
+                        hard_line_break().fmt(f)?;
+                    } else if !is_preceding_stub_function_without_empty_line {
                         match self.kind {
                             SuiteKind::TopLevel => {
                                 write!(f, [empty_line(), empty_line()])?;
@@ -272,7 +283,17 @@ impl FormatRule<Suite, PyFormatContext<'_>> for FormatSuite {
                         }
                     }
                     SuiteKind::Function | SuiteKind::Class | SuiteKind::Other { .. } => {
-                        empty_line().fmt(f)?;
+                        // unsloth: no empty line after the imports of a short nested
+                        // suite (<= 3 statements) when nothing but blank lines separates them.
+                        if !is_import_definition(following)
+                            && statements.len() <= 3
+                            && !following_comments.has_leading()
+                            && !preceding_comments.has_trailing_own_line()
+                        {
+                            hard_line_break().fmt(f)?;
+                        } else {
+                            empty_line().fmt(f)?;
+                        }
                     }
                 }
             } else if is_compound_statement(preceding) {

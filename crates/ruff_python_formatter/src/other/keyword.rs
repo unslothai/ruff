@@ -15,7 +15,7 @@ impl FormatNodeRule<Keyword> for FormatKeyword {
         } = item;
         // Comments after the `=` or `**` are reassigned as leading comments on the value.
         if let Some(arg) = arg {
-            write!(f, [arg.format(), token("="), value.format()])
+            write!(f, [arg.format(), token(" = "), value.format()])
         } else {
             write!(f, [token("**"), value.format()])
         }

@@ -10,7 +10,13 @@ documentation = { workspace = true }
 repository = { workspace = true }
 license = { workspace = true }
 readme = "../../README.md"
-default-run = "ruff"
+autobins = false
+default-run = "ruff-unsloth"
+
+# unsloth: own binary name, so it can sit beside a stock ruff install.
+[[bin]]
+name = "ruff-unsloth"
+path = "src/main.rs"
 
 [dependencies]
 ruff_cache = { workspace = true }
